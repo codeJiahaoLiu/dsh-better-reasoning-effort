@@ -1,0 +1,61 @@
+{
+  "name": "dsh-better-reasoning-effort",
+  "version": "0.4.0",
+  "description": "A compact reasoning-effort slider for the DeepSeek Harness Web GUI: current level on the left, violet slider on the right, grey-black remainder, and meteor motion.",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src",
+    "scripts",
+    "demo/*.png",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "PUBLISHING.md"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --test test/unit.test.mjs && node test/browser.test.mjs",
+    "preview": "node scripts/preview.mjs",
+    "prepare": "node scripts/build.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-model-selection",
+        "@deepseek-ai/dsh-client-ui-renderer"
+      ]
+    }
+  },
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "reasoning-effort",
+    "slider",
+    "ui"
+  ]
+}

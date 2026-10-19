@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reasoning Effort — violet slider preview</title>
+<style>
+  :root {
+    color-scheme: light;
+    --demo-bg: #f3f4f7;
+    --demo-card: #ffffff;
+    --demo-ink: #191b1f;
+    --demo-muted: #7b8290;
+    --demo-line: rgba(20, 24, 32, 0.1);
+    --demo-shadow: 0 30px 70px rgba(20, 24, 32, 0.13), 0 2px 8px rgba(20, 24, 32, 0.05);
+    --dsw-alias-label-primary: #191b1f;
+    --dsw-alias-label-secondary: #4c5360;
+    --dsw-alias-label-tertiary: #7b8290;
+    --dsw-alias-label-caption: #8b929e;
+    --dsw-alias-interactive-bg-hover: rgba(20, 24, 32, 0.06);
+    --dsw-alias-border-l1: rgba(20, 24, 32, 0.1);
+    --dsw-radius-sm: 7px;
+    --dsw-radius-md: 9px;
+    --dsw-radius-lg: 12px;
+    --dsw-focus-ring-color: #8b5cf6;
+  }
+
+  body[data-ds-dark-theme] {
+    color-scheme: dark;
+    --demo-bg: #0c0e14;
+    --demo-card: #161a22;
+    --demo-ink: #eef1f7;
+    --demo-muted: #9aa3b2;
+    --demo-line: rgba(255, 255, 255, 0.1);
+    --demo-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 2px 8px rgba(0, 0, 0, 0.3);
+    --dsw-alias-label-primary: #eef1f7;
+    --dsw-alias-label-secondary: #c0c6d2;
+    --dsw-alias-label-tertiary: #9aa3b2;
+    --dsw-alias-label-caption: #8b93a1;
+    --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.07);
+    --dsw-alias-border-l1: rgba(255, 255, 255, 0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    color: var(--demo-ink);
+    background:
+      radial-gradient(820px 520px at 10% 0%, color-mix(in oklab, #8b5cf6 22%, transparent), transparent 70%),
+      radial-gradient(760px 540px at 92% 92%, color-mix(in oklab, #d946ef 16%, transparent), transparent 72%),
+      var(--demo-bg);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Segoe UI", sans-serif;
+    transition: background-color 220ms ease, color 220ms ease;
+  }
+
+  .shell { width: min(1020px, calc(100vw - 56px)); margin: 0 auto; padding: 44px 0 56px; }
+
+  .topbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 26px; }
+  .brand h1 { margin: 0; font-size: 21px; letter-spacing: -0.025em; font-weight: 680; }
+  .brand p { margin: 5px 0 0; color: var(--demo-muted); font-size: 12px; letter-spacing: 0.01em; }
+
+  .theme-switch { display: inline-flex; gap: 4px; padding: 4px; border: 0.5px solid var(--demo-line); border-radius: 999px; background: color-mix(in oklab, var(--demo-card) 72%, transparent); backdrop-filter: blur(12px); }
+  .theme-switch button { border: 0; border-radius: 999px; padding: 6px 13px; background: transparent; color: var(--demo-muted); font: inherit; font-size: 12px; cursor: pointer; }
+  .theme-switch button[aria-pressed="true"] { background: var(--demo-ink); color: var(--demo-card); }
+  .theme-switch button:focus-visible { outline: 2px solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+
+  .composer {
+    border: 0.5px solid var(--demo-line);
+    border-radius: 22px;
+    background: color-mix(in oklab, var(--demo-card) 92%, transparent);
+    box-shadow: var(--demo-shadow);
+    padding: 22px 24px 14px;
+    backdrop-filter: blur(18px);
+  }
+  .composer-label { margin-bottom: 14px; color: var(--demo-muted); font-size: 12px; }
+  .composer-text { min-height: 72px; font-size: 15px; line-height: 1.65; }
+  .composer-text span { color: var(--demo-muted); }
+
+  .composer-row { display: flex; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 0.5px solid var(--demo-line); }
+  .chip { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border: 0.5px solid var(--demo-line); border-radius: 7px; color: var(--demo-muted); font-size: 11px; background: color-mix(in oklab, var(--demo-card) 70%, transparent); }
+  .spacer { flex: 1; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #10b981; }
+
+  .x_trigger { display: flex; align-items: center; gap: 4px; height: 28px; max-width: min(330px, 42cqw); padding: 0 4px 0 8px; border: 0; border-radius: var(--dsw-radius-sm); background: transparent; color: var(--dsw-alias-label-secondary); font: inherit; font-size: 13px; line-height: 20px; cursor: pointer; }
+  .x_trigger:hover { background: var(--dsw-alias-interactive-bg-hover); }
+  .x_trigger:focus-visible { outline: 2px solid var(--dsw-focus-ring-color); outline-offset: 2px; }
+  .x_triggerLabel { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .x_triggerEffort { flex-shrink: 1000; min-width: 0; overflow: hidden; color: var(--dsw-alias-label-caption); text-overflow: ellipsis; white-space: nowrap; }
+  .x_chevron { color: var(--dsw-alias-label-caption); font-size: 10px; }
+
+  .send { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 50%; corner-shape: round; background: var(--demo-ink); color: var(--demo-card); font: inherit; font-size: 16px; cursor: pointer; }
+
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 34px 2px 12px; }
+  .section-head h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
+  .section-head p { margin: 0; color: var(--demo-muted); font-size: 11px; }
+
+  .showcase { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 980px) { .showcase { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 620px) { .showcase { grid-template-columns: 1fr; } }
+
+  .level-card {
+    position: relative;
+    min-height: 116px;
+    padding: 16px 16px 14px;
+    border: 0.5px solid var(--demo-line);
+    border-radius: 16px;
+    background: color-mix(in oklab, var(--demo-card) 88%, transparent);
+    box-shadow: 0 10px 28px rgba(20, 24, 32, 0.06);
+    overflow: hidden;
+  }
+  .level-card::before {
+    content: "";
+    position: absolute;
+    inset: auto -30% -60% -30%;
+    height: 90px;
+    background: radial-gradient(closest-side, color-mix(in oklab, #a855f7 24%, transparent), transparent 75%);
+    pointer-events: none;
+  }
+  .level-card h3 { position: relative; margin: 0 0 2px; font-size: 12px; font-weight: 600; }
+  .level-card p { position: relative; margin: 0 0 16px; color: var(--demo-muted); font-size: 10.5px; }
+  .showcase .rls-slider { width: 100%; }
+  .showcase .rls-track { flex: 1 1 auto; width: auto; }
+
+  .foot { display: flex; justify-content: space-between; gap: 18px; margin-top: 30px; color: var(--demo-muted); font-size: 11px; line-height: 1.65; }
+  .foot code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; }
+  .hint-arrow { color: #a855f7; font-weight: 600; }
+</style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar">
+      <div class="brand">
+        <h1>推理强度 · Reasoning Effort</h1>
+        <p>拖动滑块调整推理等级 · 渐变紫色 + 流光溢彩</p>
+      </div>
+      <div class="theme-switch" role="group" aria-label="Theme">
+        <button id="theme-light" type="button" aria-pressed="true">浅色</button>
+        <button id="theme-dark" type="button" aria-pressed="false">深色</button>
+      </div>
+    </div>
+
+    <section class="composer" aria-label="Composer">
+      <div class="composer-label">与 DeepSeek 对话</div>
+      <div class="composer-text">帮我审查这个插件，并把推理等级调到最合适的档位。<br><span>输入消息…</span></div>
+      <div class="composer-row">
+        <span class="chip"><span class="dot"></span>Plan</span>
+        <span class="chip">Read-only</span>
+        <span class="spacer"></span>
+        <div id="composer-slot" class="composer-slot"></div>
+        <button class="x_trigger" id="model-trigger" type="button" aria-haspopup="menu" aria-expanded="false" title="DeepSeek-V4.1-Flash · High">
+          <span class="x_triggerLabel" data-provider-id="deepseek-account" data-model-id="deepseek-flash">DeepSeek-V4.1-Flash</span>
+          <span class="x_triggerEffort" id="trigger-effort">High</span>
+          <span class="x_chevron" aria-hidden="true">⌄</span>
+        </button>
+        <button class="send" type="button" aria-label="Send">↑</button>
+      </div>
+    </section>
+
+    <div class="section-head">
+      <h2>滑动时的紫色流光</h2>
+      <p>同一组件在 off / low / high / max 四档的放大展示 — 拖动试试</p>
+    </div>
+
+    <section class="showcase" aria-label="Slider levels">
+      <article class="level-card">
+        <h3>Off</h3>
+        <p>关闭推理 · 最快响应</p>
+        <div id="level-off"></div>
+      </article>
+      <article class="level-card">
+        <h3>Low</h3>
+        <p>轻量推理 · 更快响应</p>
+        <div id="level-low"></div>
+      </article>
+      <article class="level-card">
+        <h3>High</h3>
+        <p>深度推理 · 更完整分析</p>
+        <div id="level-high"></div>
+      </article>
+      <article class="level-card">
+        <h3>Max</h3>
+        <p>最强推理 · 最完整分析</p>
+        <div id="level-max"></div>
+      </article>
+    </section>
+
+    <div class="foot">
+      <span>原生 Effort 菜单入口在滑块可用时隐藏；模型选择列表保持原样。<br>拖动、点击轨道，或聚焦后使用 <span class="hint-arrow">← →</span> / Home / End。</span>
+      <span><code>dsh-better-reasoning-effort</code><br>reduced-motion aware</span>
+    </div>
+  </main>
+
+  <script src="../node_modules/react/umd/react.development.js"></script>
+  <script src="../node_modules/react-dom/umd/react-dom.development.js"></script>
+  <script>
+    window.__ModuleLoader__ = {
+      load(entry) {
+        window.__entry = entry
+      },
+    }
+  </script>
+  <script src="../lib/client.js"></script>
+  <script>
+    const t = (key) => ({
+      sliderAria: '推理强度滑块',
+      defaultStop: '默认',
+      error: '无法切换推理等级',
+    }[key] ?? key)
+
+    const EFFORTS = [
+      { id: 'off', name: 'Off' },
+      { id: 'low', name: 'Low' },
+      { id: 'high', name: 'High' },
+      { id: 'max', name: 'Max' },
+    ]
+
+    function createStore(initial) {
+      let snapshot = {
+        current: { provider: 'deepseek-account', model: 'deepseek-flash', reasoningEffort: initial },
+        routable: true,
+        groups: [{ id: 'deepseek-account', name: 'DeepSeek Account', models: [{ id: 'deepseek-flash', name: 'DeepSeek-V4.1-Flash', reasoning: { efforts: EFFORTS, defaultEffort: 'low' } }] }],
+        failures: [],
+        status: 'ready',
+        pending: null,
+        error: null,
+      }
+      const listeners = new Set()
+      return {
+        subscribe(notify) {
+          listeners.add(notify)
+          return () => listeners.delete(notify)
+        },
+        getSnapshot() {
+          return snapshot
+        },
+        select: async (selection) => {
+          snapshot = { ...snapshot, current: selection }
+          for (const notify of listeners) notify()
+          return { ok: true, value: undefined }
+        },
+      }
+    }
+
+    const stores = {
+      composer: createStore('high'),
+      off: createStore('off'),
+      low: createStore('low'),
+      high: createStore('high'),
+      max: createStore('max'),
+    }
+
+    const ctx = {
+      effect(effect) {
+        return effect()
+      },
+      locale: { register() { return () => {} } },
+      slots: {
+        inject(name, contribute) { contribute() },
+        register(options, Component) {
+          window.__sliderComponent = Component
+          return () => {}
+        },
+      },
+      modelDirectories: { directoryFor() { throw new Error('demo does not use the directory') } },
+      sessions: { subagentAddress() { return undefined } },
+    }
+
+    const entry = window.__entry
+    const plugin = entry.factory((id) => {
+      if (id === 'react') return window.React
+      throw new Error('unexpected require: ' + id)
+    })
+    plugin.apply(ctx)
+    const Slider = window.__sliderComponent
+
+    function renderSlider(id, store) {
+      const root = ReactDOM.createRoot(document.getElementById(id))
+      root.render(React.createElement(Slider, {
+        available: true,
+        store,
+        load: () => {},
+        select: (selection) => store.select(selection),
+        t,
+      }))
+      return root
+    }
+
+    const roots = [
+      renderSlider('composer-slot', stores.composer),
+      renderSlider('level-off', stores.off),
+      renderSlider('level-low', stores.low),
+      renderSlider('level-high', stores.high),
+      renderSlider('level-max', stores.max),
+    ]
+
+    // Keep the mock model trigger's hidden caption/title in sync with the slider.
+    const unsubscribe = stores.composer.subscribe(() => {
+      const label = stores.composer.getSnapshot().current.reasoningEffort
+      const name = EFFORTS.find((effort) => effort.id === label)?.name ?? label
+      document.getElementById('trigger-effort').textContent = name
+      document.getElementById('model-trigger').title = `DeepSeek-V4.1-Flash · ${name}`
+    })
+
+    const setTheme = (dark) => {
+      document.body.toggleAttribute('data-ds-dark-theme', dark)
+      document.getElementById('theme-light').setAttribute('aria-pressed', String(!dark))
+      document.getElementById('theme-dark').setAttribute('aria-pressed', String(dark))
+    }
+    document.getElementById('theme-light').addEventListener('click', () => setTheme(false))
+    document.getElementById('theme-dark').addEventListener('click', () => setTheme(true))
+    const requested = new URLSearchParams(location.search).get('theme')
+    setTheme(requested === 'dark' || (requested !== 'light' && window.matchMedia?.('(prefers-color-scheme: dark)').matches === true))
+  </script>
+</body>
+</html>

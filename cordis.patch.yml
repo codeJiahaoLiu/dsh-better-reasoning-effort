@@ -1,0 +1,9 @@
+# dsh-better-reasoning-effort bundle layer.
+#
+# `dsh plugin add <path-or-package>` appends this bundle to the target
+# profile's bundle list. The row is a pure browser plugin: the Node half is
+# an empty `apply`, and the browser half is discovered through the package's
+# `dsh.client` declaration.
+- insert:
+    - id: better-reasoning-effort
+      name: dsh-better-reasoning-effort

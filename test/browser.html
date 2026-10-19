@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>RUNNING</title>
+<style>
+  body { font: 13px/1.5 ui-monospace, monospace; margin: 24px; }
+  pre { white-space: pre-wrap; }
+  /* Minimal host stand-ins. */
+  .x_trigger { display: flex; gap: 4px; align-items: center; height: 28px; padding: 0 4px; border: 0; background: transparent; font: inherit; }
+  .x_triggerEffort { color: #8b929e; }
+  .x_menu { display: flex; flex-direction: column; width: 280px; padding: 4px; margin: 12px 0; border: 1px solid #ccc; }
+  .x_cell, .x_option { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 5px 7px; border: 0; background: transparent; font: inherit; text-align: left; }
+  .x_cellValue { flex: 1; text-align: right; }
+  .x_optionCopy { flex: 1; }
+  .right-slot { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0; }
+</style>
+</head>
+<body>
+  <div class="composer" data-composer-card>
+    <div class="right-slot" id="slot"></div>
+    <button class="x_trigger" id="trigger" type="button" aria-haspopup="menu" aria-controls="model-menu" aria-expanded="true">
+      <span class="x_triggerLabel" data-provider-id="deepseek-account" data-model-id="deepseek-flash">DeepSeek-V4.1-Flash</span>
+      <span class="x_triggerEffort" id="trigger-effort">High</span>
+    </button>
+  </div>
+
+  <div class="x_menu" id="model-menu" role="menu" aria-label="Model and reasoning effort">
+    <button class="x_cell" type="button" role="menuitem">
+      <span class="x_cellLabel">Model</span>
+      <span class="x_cellValue">DeepSeek-V4.1-Flash</span>
+    </button>
+    <button class="x_cell" id="effort-cell" type="button" role="menuitem">
+      <span class="x_cellLabel">Effort</span>
+      <span class="x_cellValue">High</span>
+    </button>
+    <button class="x_option" id="model-row" type="button" role="menuitemradio" aria-checked="false">
+      <span class="x_optionCopy"><span class="x_modelName">DeepSeek Chat</span></span>
+    </button>
+  </div>
+
+  <!-- Not controlled by the trigger: only the first-paint CSS may hide its Effort cell. -->
+  <div class="x_menu" id="measured-menu" role="menu" aria-label="Model and reasoning effort">
+    <button class="x_cell" type="button" role="menuitem">
+      <span class="x_cellLabel">Model</span>
+      <span class="x_cellValue">DeepSeek Chat</span>
+    </button>
+    <button class="x_cell" id="measured-effort" type="button" role="menuitem">
+      <span class="x_cellLabel">Effort</span>
+      <span class="x_cellValue">High</span>
+    </button>
+  </div>
+
+  <pre id="result">waiting</pre>
+
+  <script src="../node_modules/react/umd/react.development.js"></script>
+  <script src="../node_modules/react-dom/umd/react-dom.development.js"></script>
+  <script>
+    window.__ModuleLoader__ = {
+      load(entry) {
+        window.__entry = entry
+      },
+    }
+  </script>
+  <script src="../lib/client.js"></script>
+  <script>
+    const results = []
+    const check = (name, ok, detail) => results.push({ name, ok: Boolean(ok), detail })
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+    const t = (key) => ({
+      label: 'Effort',
+      sliderAria: 'Reasoning effort slider',
+      defaultStop: 'Default',
+      error: 'Could not change reasoning effort',
+    }[key] ?? key)
+
+    window.addEventListener('error', (event) => {
+      document.getElementById('result').textContent = 'ERROR: ' + event.message + '\n' + event.filename + ':' + event.lineno
+      document.body.dataset.testStatus = 'fail'
+      document.title = 'FAIL'
+    })
+
+    const efforts = [
+      { id: 'off', name: 'Off' },
+      { id: 'low', name: 'Low' },
+      { id: 'high', name: 'High' },
+      { id: 'max', name: 'Max' },
+    ]
+    const groups = [
+      {
+        id: 'deepseek-account',
+        name: 'DeepSeek Account',
+        models: [
+          {
+            id: 'deepseek-flash',
+            name: 'DeepSeek-V4.1-Flash',
+            reasoning: { efforts, defaultEffort: 'medium' },
+          },
+          { id: 'deepseek-chat', name: 'DeepSeek Chat' },
+          {
+            id: 'deepseek-reasoner',
+            name: 'DeepSeek Reasoner',
+            reasoning: { efforts },
+          },
+        ],
+      },
+    ]
+
+    let snapshot = {
+      current: { provider: 'deepseek-account', model: 'deepseek-flash', reasoningEffort: 'high' },
+      routable: true,
+      groups,
+      failures: [],
+      status: 'ready',
+      pending: null,
+      error: null,
+    }
+    const listeners = new Set()
+    const selections = []
+    const store = {
+      subscribe(notify) {
+        listeners.add(notify)
+        return () => listeners.delete(notify)
+      },
+      getSnapshot() {
+        return snapshot
+      },
+    }
+    const update = (next) => {
+      snapshot = { ...snapshot, ...next }
+      for (const notify of listeners) notify()
+    }
+    const directory = {
+      store,
+      async load() {
+        return snapshot
+      },
+      async select(selection) {
+        selections.push(selection)
+        update({ current: selection, pending: null, status: 'ready' })
+        return { ok: true, value: undefined }
+      },
+    }
+
+    const disposers = []
+    let registration
+    const ctx = {
+      effect(effect) {
+        const disposer = effect()
+        if (typeof disposer === 'function') disposers.push(disposer)
+        return disposer
+      },
+      locale: {
+        register() {
+          return () => {}
+        },
+      },
+      slots: {
+        inject(name, contribute) {
+          contribute()
+        },
+        register(options, Component) {
+          registration = { options, Component }
+          return () => {}
+        },
+      },
+      modelDirectories: {
+        directoryFor(sessionId) {
+          if (sessionId !== 'session-1') throw new Error('unknown session')
+          return directory
+        },
+      },
+      sessions: {
+        subagentAddress() {
+          return undefined
+        },
+      },
+    }
+
+    let root
+    const finish = () => {
+      const failed = results.filter((result) => !result.ok)
+      document.body.dataset.testStatus = failed.length === 0 ? 'pass' : 'fail'
+      document.title = failed.length === 0 ? 'PASS' : 'FAIL'
+      document.getElementById('result').textContent = JSON.stringify(results, null, 2)
+    }
+
+    const slider = () => document.querySelector('.rls-track')
+    const currentText = () => document.querySelector('.rls-current')?.textContent
+    const fill = () => document.querySelector('.rls-fill')
+    const bodyMarked = () => document.body.hasAttribute('data-rls-effort-slider')
+    const display = (element) => getComputedStyle(element).display
+
+    async function run() {
+      const entry = window.__entry
+      const plugin = entry.factory((id) => {
+        if (id === 'react') return window.React
+        throw new Error('unexpected require: ' + id)
+      })
+      plugin.apply(ctx)
+
+      check('client slot registered', registration?.options?.name === 'conversation.input.right')
+      check('client slot id', registration?.options?.id === 'reasoning-effort-slider')
+      check('style installed', document.querySelector('style[data-plugin="dsh-better-reasoning-effort"]') !== null)
+
+      const injected = registration.options.inject('session-1')
+      check('session directory injected', injected.available === true && injected.store === store)
+
+      root = ReactDOM.createRoot(document.getElementById('slot'))
+      root.render(React.createElement(registration.Component, { ...injected, t }))
+      await sleep(60)
+
+      check('slider rendered', slider() !== null)
+      check('body marker set', bodyMarked())
+      check('aria current level', slider()?.getAttribute('aria-valuenow') === '2', slider()?.getAttribute('aria-valuenow'))
+      check('aria value text', slider()?.getAttribute('aria-valuetext') === 'High', slider()?.getAttribute('aria-valuetext'))
+      check('current level on the left', currentText() === 'High', currentText())
+      check('level labels row removed', document.querySelector('.rls-labels') === null)
+      check('current display sits left of the slider', document.querySelector('.rls-current').getBoundingClientRect().right <= slider().getBoundingClientRect().left, `${document.querySelector('.rls-current').getBoundingClientRect().right}/${slider().getBoundingClientRect().left}`)
+      check('long rail', slider().getBoundingClientRect().width >= 210, slider().getBoundingClientRect().width)
+      check('six meteors inside the fill', document.querySelectorAll('.rls-fill .rls-meteor').length === 6)
+      check('meteor loop animation', getComputedStyle(document.querySelector('.rls-meteor')).animationName.includes('rls-meteor'), getComputedStyle(document.querySelector('.rls-meteor')).animationName)
+      check('rounded-square thumb', getComputedStyle(document.querySelector('.rls-thumb')).borderRadius === '6px', getComputedStyle(document.querySelector('.rls-thumb')).borderRadius)
+      check('control height 24px', getComputedStyle(document.querySelector('.rls-slider')).height === '24px', getComputedStyle(document.querySelector('.rls-slider')).height)
+      check('rail height 22px', getComputedStyle(slider()).height === '22px', getComputedStyle(slider()).height)
+      check('rail border hidden at rest', getComputedStyle(slider()).borderTopColor === 'rgba(0, 0, 0, 0)', getComputedStyle(slider()).borderTopColor)
+      check('unfilled rail remains at high', fill().getBoundingClientRect().width < slider().getBoundingClientRect().width, `${fill().getBoundingClientRect().width}/${slider().getBoundingClientRect().width}`)
+      check('native effort caption hidden', display(document.getElementById('trigger-effort')) === 'none', display(document.getElementById('trigger-effort')))
+      check('legacy effort cell hidden', display(document.getElementById('effort-cell')) === 'none', display(document.getElementById('effort-cell')))
+      check('model row remains visible', display(document.getElementById('model-row')) !== 'none', display(document.getElementById('model-row')))
+      check('uncontrolled effort cell hidden by CSS', display(document.getElementById('measured-effort')) === 'none', display(document.getElementById('measured-effort')))
+      check('uncontrolled model cell visible', display(document.querySelector('#measured-menu button[role="menuitem"]')) !== 'none')
+      check('violet gradient fill', getComputedStyle(fill()).backgroundImage.includes('linear-gradient'), getComputedStyle(fill()).backgroundImage.slice(0, 80))
+      check('uniform fill is not animated', getComputedStyle(fill()).animationName === 'none', getComputedStyle(fill()).animationName)
+      check('sheen loop animation', getComputedStyle(document.querySelector('.rls-sheen')).animationName.includes('rls-sheen'), getComputedStyle(document.querySelector('.rls-sheen')).animationName)
+
+      // Keyboard: one step down commits Medium.
+      slider().focus()
+      slider().dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
+      slider().dispatchEvent(new KeyboardEvent('keyup', { key: 'ArrowLeft', bubbles: true }))
+      await sleep(50)
+      check('keyboard commits the next stop', selections.at(-1)?.reasoningEffort === 'low', JSON.stringify(selections.at(-1)))
+      check('keyboard updates the thumb', slider()?.getAttribute('aria-valuenow') === '1', slider()?.getAttribute('aria-valuenow'))
+      check('keyboard updates the current level', currentText() === 'Low', currentText())
+
+      // Pointer: drag to the right edge commits High.
+      const rect = slider().getBoundingClientRect()
+      const x = rect.left + rect.width * 0.94
+      slider().dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: x, clientY: rect.top + rect.height / 2, button: 0, buttons: 1, pointerId: 1 }))
+      slider().dispatchEvent(new PointerEvent('pointermove', { bubbles: true, clientX: x, clientY: rect.top + rect.height / 2, button: 0, buttons: 1, pointerId: 1 }))
+      await sleep(30)
+      check('drag preview updates the current level', currentText() === 'Max', currentText())
+      check('drag preview does not commit yet', selections.at(-1)?.reasoningEffort === 'low', JSON.stringify(selections.at(-1)))
+      slider().dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: x, clientY: rect.top + rect.height / 2, button: 0, buttons: 0, pointerId: 1 }))
+      await sleep(50)
+      check('pointer drag commits the right stop', selections.at(-1)?.reasoningEffort === 'max', JSON.stringify(selections.at(-1)))
+      check('pointer drag updates the thumb', slider()?.getAttribute('aria-valuenow') === '3', slider()?.getAttribute('aria-valuenow'))
+      check('pointer drag updates the current level', currentText() === 'Max', currentText())
+
+      // A model without reasoning renders nothing and restores the native UI.
+      update({ current: { provider: 'deepseek-account', model: 'deepseek-chat' } })
+      await sleep(50)
+      check('non-reasoning model hides the slider', slider() === null)
+      check('body marker cleared', !bodyMarked())
+      check('native effort caption restored', display(document.getElementById('trigger-effort')) !== 'none', display(document.getElementById('trigger-effort')))
+      check('native effort cell restored', display(document.getElementById('effort-cell')) !== 'none', display(document.getElementById('effort-cell')))
+
+      // A model with no default effort gains a provider-default stop.
+      update({ current: { provider: 'deepseek-account', model: 'deepseek-reasoner' } })
+      await sleep(60)
+      check('reasoner slider returns', slider() !== null)
+      check('provider-default stop is selected', slider()?.getAttribute('aria-valuenow') === '0', slider()?.getAttribute('aria-valuenow'))
+      check('provider-default current level', currentText() === 'Default', currentText())
+      check('provider-default max', slider()?.getAttribute('aria-valuemax') === '4', slider()?.getAttribute('aria-valuemax'))
+
+      // End-to-end custom selection: jump to the last stop with End.
+      slider().focus()
+      slider().dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
+      slider().dispatchEvent(new KeyboardEvent('keyup', { key: 'End', bubbles: true }))
+      await sleep(50)
+      check('End selects the strongest effort', selections.at(-1)?.reasoningEffort === 'max', JSON.stringify(selections.at(-1)))
+      check('End moves the thumb', slider()?.getAttribute('aria-valuenow') === '4', slider()?.getAttribute('aria-valuenow'))
+
+      // Unmount removes the page marker; fiber disposal removes styles and marks.
+      root.unmount()
+      await sleep(40)
+      check('unmount clears the body marker', !bodyMarked())
+      for (const dispose of disposers.reverse()) dispose()
+      check('disposal removes the style', document.querySelector('style[data-plugin="dsh-better-reasoning-effort"]') === null)
+      finish()
+    }
+
+    setTimeout(() => {
+      run().catch((error) => {
+        document.getElementById('result').textContent = 'ERROR: ' + (error?.stack ?? String(error))
+        document.body.dataset.testStatus = 'fail'
+        document.title = 'FAIL'
+      })
+    }, 0)
+  </script>
+</body>
+</html>

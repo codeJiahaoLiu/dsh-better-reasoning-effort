@@ -1,0 +1,423 @@
+/*
+ * dsh-better-reasoning-effort — a compact violet slider for the DSH composer.
+ *
+ * Layout (24px tall):
+ *
+ *   .rls-slider
+ *     .rls-current                    current level, capitalized
+ *     .rls-track[role=slider]         220px × 22px, grey-black rail
+ *       .rls-fill > .rls-sheen        purple fill up to the current stop
+ *       .rls-aura                     soft glow around the thumb
+ *       .rls-meteor × 6               moving white meteor trails
+ *       .rls-thumb                    rounded-square pearl knob
+ *
+ * The unfilled part of the rail stays grey-black. The fill gradient is static
+ * and scaled to the fill width; the sheen, meteors, and glow loop seamlessly,
+ * and their durations shorten as the level rises.
+ *
+ * The native model-menu effort entry is hidden from the menu's first paint so
+ * the popup measures and animates at its final height. Model options are not
+ * touched.
+ */
+
+body[data-rls-effort-slider] [class*="triggerEffort"] {
+  display: none;
+}
+
+/*
+ * Hide the root menu's second cell (Model, Effort) synchronously. The model
+ * menu is the only MenuSurface whose cells carry `cellLabel`; scoping this
+ * rule prevents the one-frame height jump caused by hiding the cell after the
+ * popup has already measured itself.
+ */
+body[data-rls-effort-slider] [role="menu"]:has(> button[role="menuitem"] [class*="cellLabel"]) > button[role="menuitem"] + button[role="menuitem"] {
+  display: none !important;
+}
+
+.rls-slider {
+  --rls-track-h: 22px;
+  --rls-thumb-size: 18px;
+  --rls-inset: 11px;
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  height: 24px;
+  color: var(--dsw-alias-label-secondary, #4c5360);
+  font-size: 12px;
+  line-height: 16px;
+  user-select: none;
+}
+
+.rls-current {
+  flex: 0 0 auto;
+  min-width: 54px;
+  max-width: 68px;
+  overflow: hidden;
+  color: #7c3aed;
+  font-size: 11.5px;
+  font-weight: 650;
+  line-height: 14px;
+  letter-spacing: 0.01em;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(168, 85, 247, 0.35);
+  transition: color 160ms ease, text-shadow 160ms ease;
+}
+
+body[data-ds-dark-theme] .rls-current {
+  color: #e9d5ff;
+  text-shadow: 0 0 9px rgba(217, 70, 239, 0.45);
+}
+
+.rls-track {
+  --rls-thumb-left: calc(var(--rls-inset) + (100% - 2 * var(--rls-inset)) * var(--rls-pos, 0));
+  --rls-sheen-duration: calc(4.8s - 2.8s * var(--rls-pos, 0));
+  --rls-meteor-duration: calc(5.4s - 3.6s * var(--rls-pos, 0));
+  --rls-aura-duration: calc(4.2s - 2s * var(--rls-pos, 0));
+  --rls-thumb-duration: calc(3.2s - 1.2s * var(--rls-pos, 0));
+  position: relative;
+  flex: 0 0 220px;
+  width: 220px;
+  height: var(--rls-track-h);
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: calc(var(--rls-track-h) / 2);
+  corner-shape: round;
+  background: linear-gradient(90deg, #202028 0%, #292932 58%, #32323c 100%);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.06),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  outline: none;
+  touch-action: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.rls-slider:hover .rls-track,
+.rls-slider[data-dragging] .rls-track {
+  border-color: rgba(168, 85, 247, 0.45);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.08),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
+    0 0 16px rgba(168, 85, 247, 0.28);
+}
+
+.rls-track:focus-visible {
+  border-color: rgba(168, 85, 247, 0.75);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.08),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
+    0 0 0 2px rgba(139, 92, 246, 0.6),
+    0 0 18px rgba(168, 85, 247, 0.35);
+}
+
+.rls-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: min(100%, calc(var(--rls-inset) + (100% - 2 * var(--rls-inset)) * var(--rls-pos, 0) + var(--rls-thumb-size) / 2));
+  overflow: hidden;
+  border-radius: inherit;
+  background-image: linear-gradient(90deg in oklab, #8b5cf6 0%, #e9d5ff 100%);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+}
+
+.rls-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 42%, rgba(0, 0, 0, 0.12));
+  pointer-events: none;
+}
+
+.rls-sheen {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -70%;
+  width: 70%;
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.52), transparent);
+  animation: rls-sheen var(--rls-sheen-duration) linear infinite;
+  pointer-events: none;
+}
+
+.rls-aura {
+  position: absolute;
+  top: 50%;
+  left: var(--rls-thumb-left);
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: radial-gradient(circle, rgba(216, 180, 254, 0.5) 0%, rgba(168, 85, 247, 0.28) 36%, transparent 70%);
+  filter: blur(6px);
+  mix-blend-mode: screen;
+  transform: translate(-50%, -50%);
+  animation: rls-aura-pulse var(--rls-aura-duration) ease-in-out infinite;
+  pointer-events: none;
+}
+
+.rls-meteor {
+  position: absolute;
+  left: -20%;
+  height: 1.5px;
+  border-radius: 999px;
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.92));
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.55);
+  opacity: 0;
+  animation: rls-meteor var(--rls-meteor-duration) linear infinite;
+  pointer-events: none;
+}
+
+.rls-meteor::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -1px;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 5px #ffffff;
+  transform: translateY(-50%);
+}
+
+.rls-thumb {
+  position: absolute;
+  top: 50%;
+  left: var(--rls-thumb-left);
+  width: var(--rls-thumb-size);
+  height: var(--rls-thumb-size);
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+  corner-shape: round;
+  background:
+    radial-gradient(circle at 32% 26%, #ffffff 0 12%, #f8f3ea 42%, #eadcff 72%, #c4b5fd 100%);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.1),
+    0 0 14px rgba(168, 85, 247, 0.65),
+    0 3px 8px rgba(0, 0, 0, 0.38);
+  transform: translate(-50%, -50%);
+  transition: left 180ms cubic-bezier(0.22, 1, 0.36, 1), transform 160ms ease;
+  pointer-events: none;
+}
+
+.rls-thumb::before {
+  content: "";
+  position: absolute;
+  inset: 2.5px;
+  border-radius: 4px;
+  background-image:
+    repeating-linear-gradient(118deg, rgba(120, 80, 160, 0.07) 0 1px, transparent 1px 4px),
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.95), transparent 48%);
+  opacity: 0.8;
+}
+
+.rls-thumb::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  z-index: -1;
+  border-radius: 9px;
+  background: radial-gradient(circle, rgba(168, 85, 247, 0.4), transparent 68%);
+  filter: blur(4px);
+  animation: rls-thumb-glow var(--rls-thumb-duration) ease-in-out infinite;
+}
+
+.rls-slider[data-pending] .rls-thumb {
+  animation: rls-pending 1.4s ease-in-out infinite;
+}
+
+.rls-slider[data-dragging] .rls-thumb {
+  transform: translate(-50%, -50%) scale(1.1);
+  transition: transform 120ms ease;
+}
+
+.rls-slider[data-error] .rls-track {
+  border-color: rgba(239, 68, 68, 0.7);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.06),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45),
+    0 0 14px rgba(239, 68, 68, 0.28);
+}
+
+.rls-slider[data-error] .rls-current {
+  color: #ef4444;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+body[data-ds-dark-theme] .rls-slider {
+  color: #c0c6d2;
+}
+
+body[data-ds-dark-theme] .rls-track {
+  border-color: transparent;
+  background: linear-gradient(90deg, #1a1a20 0%, #22222a 58%, #2b2b34 100%);
+}
+
+body[data-ds-dark-theme] .rls-slider[data-error] .rls-current {
+  color: #fca5a5;
+}
+
+@keyframes rls-sheen {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@keyframes rls-meteor {
+  0% {
+    left: -20%;
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  86% {
+    opacity: 1;
+  }
+  100% {
+    left: 120%;
+    opacity: 0;
+  }
+}
+
+@keyframes rls-aura-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+}
+
+@keyframes rls-thumb-glow {
+  0%,
+  100% {
+    opacity: 0.6;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes rls-pending {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.1),
+      0 0 10px rgba(217, 70, 239, 0.6),
+      0 3px 8px rgba(0, 0, 0, 0.38);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(255, 255, 255, 0.16),
+      0 0 20px rgba(217, 70, 239, 0.9),
+      0 3px 8px rgba(0, 0, 0, 0.38);
+  }
+}
+
+@container (max-width: 700px) {
+  .rls-track {
+    flex-basis: 180px;
+    width: 180px;
+  }
+
+  .rls-current {
+    min-width: 48px;
+    font-size: 11.5px;
+  }
+}
+
+@container (max-width: 560px) {
+  .rls-slider {
+    gap: 8px;
+  }
+
+  .rls-track {
+    flex-basis: 150px;
+    width: 150px;
+  }
+
+  .rls-current {
+    min-width: 44px;
+    font-size: 11px;
+  }
+}
+
+@container (max-width: 460px) {
+  .rls-track {
+    flex-basis: 120px;
+    width: 120px;
+  }
+
+  .rls-current {
+    min-width: 40px;
+    font-size: 10.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rls-sheen,
+  .rls-meteor,
+  .rls-aura,
+  .rls-thumb::after,
+  .rls-slider[data-pending] .rls-thumb {
+    animation: none !important;
+  }
+
+  .rls-thumb {
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .rls-track {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .rls-fill {
+    background: Highlight;
+    box-shadow: none;
+  }
+
+  .rls-sheen,
+  .rls-meteor,
+  .rls-aura {
+    display: none;
+  }
+
+  .rls-thumb {
+    border-color: CanvasText;
+    background: CanvasText;
+    box-shadow: none;
+  }
+
+  .rls-thumb::before,
+  .rls-thumb::after {
+    display: none;
+  }
+
+  .rls-current {
+    color: CanvasText;
+    text-shadow: none;
+  }
+}
